@@ -10,6 +10,48 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:mobile_rag_engine/mobile_rag_engine.dart';
 import 'package:ollama_dart/ollama_dart.dart';
+import 'dart:convert';
+
+/// Query intent types for RAG parameter optimization
+enum QueryIntent {
+  summary, // 요약, 정리, 핵심 → 적은 청크, 낮은 토큰
+  definition, // ~란, 뜻, 의미 → 정확한 정의
+  broad, // 전체, 모든, 목록 → 많은 청크
+  detail, // 자세히, 왜, 어떻게 → 중간 청크
+  general, // 기본 질문
+}
+
+/// Analysis result from LLM intent classification
+class QueryAnalysis {
+  final QueryIntent intent;
+  final int adjacentChunks;
+  final int tokenBudget;
+  final int topK;
+  final String refinedQuery; // LLM이 정제한 검색 키워드
+
+  const QueryAnalysis({
+    required this.intent,
+    required this.adjacentChunks,
+    required this.tokenBudget,
+    required this.topK,
+    required this.refinedQuery,
+  });
+
+  /// Default fallback analysis
+  factory QueryAnalysis.defaultFor(String query) {
+    return QueryAnalysis(
+      intent: QueryIntent.general,
+      adjacentChunks: 2,
+      tokenBudget: 2000,
+      topK: 10,
+      refinedQuery: query,
+    );
+  }
+
+  @override
+  String toString() =>
+      'QueryAnalysis(intent: $intent, adjacent: $adjacentChunks, budget: $tokenBudget, topK: $topK, query: "$refinedQuery")';
+}
 
 /// Message model for chat
 class ChatMessage {
@@ -77,6 +119,115 @@ class _RagChatScreenState extends State<RagChatScreen> {
 
   // Similarity threshold for RAG
   final double _minSimilarityThreshold = 0.35;
+
+  /// Calculate optimal adjacent chunks based on query characteristics.
+  ///
+  /// Returns a higher value for queries that need more context (summaries,
+  /// definitions) and lower for specific short queries.
+  int _calculateAdjacentChunks(String query) {
+    final queryLength = query.length;
+    final queryLower = query.toLowerCase();
+
+    // Keywords indicating need for broader context
+    final broadContextKeywords = ['전체', '요약', '정의', '설명', '개요', '모든', '전반'];
+    final narrowContextKeywords = ['뭐야', '뭔가요', '무엇', '어디', '누가', '언제'];
+
+    // Check for broad context keywords → more adjacent chunks
+    for (final keyword in broadContextKeywords) {
+      if (queryLower.contains(keyword)) {
+        return 4; // 넓은 문맥 필요
+      }
+    }
+
+    // Short specific queries → narrower context
+    if (queryLength < 15) {
+      // Check if it's a simple lookup question
+      for (final keyword in narrowContextKeywords) {
+        if (queryLower.contains(keyword)) {
+          return 1; // 짧고 직접적인 질문
+        }
+      }
+      return 2; // 짧지만 일반적인 질문
+    }
+
+    // Long queries with specific terms → medium context
+    if (queryLength > 50) {
+      return 2; // 긴 질문은 이미 충분한 맥락 포함
+    }
+
+    // Default: balanced context
+    return 2;
+  }
+
+  /// Analyze query intent using LLM to get optimal RAG parameters.
+  /// Returns a QueryAnalysis with intent type and tuned parameters.
+  Future<QueryAnalysis> _analyzeQueryIntent(String query) async {
+    try {
+      final intentStopwatch = Stopwatch()..start();
+
+      // Quick LLM call to classify intent and refine query
+      final response = await _ollamaClient.generateCompletion(
+        request: GenerateCompletionRequest(
+          model: widget.modelName ?? 'gemma3:4b',
+          prompt:
+              '''사용자 질문을 분석하여 JSON으로만 응답하세요. 다른 텍스트 없이 JSON만 출력하세요.
+
+질문: "$query"
+
+분석 기준:
+- intent: "summary" (요약, 정리, 핵심), "definition" (정의, ~란, 뜻), "broad" (전체, 모든, 목록), "detail" (자세히, 왜, 어떻게), "general" (기타)
+- search_query: 검색에 사용할 핵심 키워드 (조사, 질문 형식 제거)
+
+JSON 형식:
+{"intent": "...", "search_query": "..."}''',
+          options: RequestOptions(
+            temperature: 0.0, // Deterministic for classification
+            numPredict: 100, // Short response expected
+          ),
+        ),
+      );
+
+      intentStopwatch.stop();
+      final responseText = response.response?.trim() ?? '';
+      debugPrint(
+        '🧠 Intent analysis (${intentStopwatch.elapsedMilliseconds}ms): $responseText',
+      );
+
+      // Parse JSON response
+      final jsonMatch = RegExp(r'\{[^}]+\}').firstMatch(responseText);
+      if (jsonMatch != null) {
+        final json = jsonDecode(jsonMatch.group(0)!) as Map<String, dynamic>;
+        final intentStr =
+            (json['intent'] as String?)?.toLowerCase() ?? 'general';
+        final searchQuery = (json['search_query'] as String?) ?? query;
+
+        // Map intent string to enum and parameters
+        final (intent, adjacent, budget, topK) = switch (intentStr) {
+          'summary' => (QueryIntent.summary, 1, 1500, 5),
+          'definition' => (QueryIntent.definition, 1, 1000, 5),
+          'broad' => (QueryIntent.broad, 3, 4000, 15),
+          'detail' => (QueryIntent.detail, 2, 2500, 10),
+          _ => (QueryIntent.general, 2, 2000, 10),
+        };
+
+        final analysis = QueryAnalysis(
+          intent: intent,
+          adjacentChunks: adjacent,
+          tokenBudget: budget,
+          topK: topK,
+          refinedQuery: searchQuery,
+        );
+
+        debugPrint('📊 Query Analysis: $analysis');
+        return analysis;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Intent analysis failed: $e');
+    }
+
+    // Fallback to default analysis
+    return QueryAnalysis.defaultFor(query);
+  }
 
   @override
   void initState() {
@@ -168,16 +319,28 @@ class _RagChatScreenState extends State<RagChatScreen> {
     try {
       final totalStopwatch = Stopwatch()..start();
 
-      // 1. RAG Search with timing
+      // 1. Intent Analysis (LLM 1차 호출)
+      final intentStopwatch = Stopwatch()..start();
+      final queryAnalysis = await _analyzeQueryIntent(text);
+      intentStopwatch.stop();
+      debugPrint(
+        '⏱️ Intent analysis: ${intentStopwatch.elapsedMilliseconds}ms',
+      );
+
+      // 2. RAG Search with analyzed parameters
       final ragStopwatch = Stopwatch()..start();
-      // 벡터 검색 + 인접 청크 포함 + 단일 소스 모드
+      debugPrint(
+        '📐 Using: intent=${queryAnalysis.intent.name}, adjacent=${queryAnalysis.adjacentChunks}, budget=${queryAnalysis.tokenBudget}, topK=${queryAnalysis.topK}',
+      );
+      debugPrint('🔎 Refined query: "${queryAnalysis.refinedQuery}"');
+
       final ragResult = await _ragService!.search(
-        text,
-        topK: 10,
-        tokenBudget: 4000, // 압축 전 더 많은 컨텍스트 수집
+        queryAnalysis.refinedQuery, // LLM이 정제한 검색어 사용
+        topK: queryAnalysis.topK,
+        tokenBudget: queryAnalysis.tokenBudget,
         strategy: ContextStrategy.relevanceFirst,
-        adjacentChunks: 2, // 앞뒤 2개 청크 포함
-        singleSourceMode: true, // 가장 관련 높은 소스만 사용
+        adjacentChunks: queryAnalysis.adjacentChunks,
+        singleSourceMode: true,
       );
       ragStopwatch.stop();
       final ragSearchTime = ragStopwatch.elapsed;
