@@ -36,7 +36,8 @@ class EmbeddingService {
   static Future<List<double>> embed(String text) async {
     if (!_isModelAvailable) {
       // Return zero vector when model not available
-      return List<double>.filled(0, 0.0);
+      // 384 is the dimension of nomic-embed-text-v1.5 (default model)
+      return List<double>.filled(384, 0.0);
     }
 
     if (_session == null) {
@@ -163,7 +164,8 @@ class EmbeddingService {
   }) async {
     if (!_isModelAvailable) {
       // Return zero vectors when model not available
-      return texts.map((_) => List<double>.filled(0, 0.0)).toList();
+      // 384 is the dimension of nomic-embed-text-v1.5 (default model)
+      return texts.map((_) => List<double>.filled(384, 0.0)).toList();
     }
 
     if (_session == null) {
