@@ -7,19 +7,38 @@ import 'package:mobile_rag_engine/src/rust/api/tokenizer.dart';
 /// Rust tokenizer + Flutter ONNX Runtime combination
 class EmbeddingService {
   static OrtSession? _session;
+  static bool _isModelAvailable = false;
 
   /// Debug mode flag
   static bool debugMode = false;
+
+  /// Check if embedding model is available
+  static bool get isModelAvailable => _isModelAvailable;
 
   /// Initialize ONNX model
   static Future<void> init(Uint8List modelBytes) async {
     OrtEnv.instance.init();
     final sessionOptions = OrtSessionOptions();
     _session = OrtSession.fromBuffer(modelBytes, sessionOptions);
+    _isModelAvailable = true;
   }
 
-  /// Convert text to 384-dimensional embedding
+  /// Convert text to embedding vector.
+  ///
+  /// NOTE: Dimension is determined by the model, NOT fixed.
+  /// Common dimensions:
+  /// - 384: nomic-embed-text-v1.5, bge-small-en-v1.5
+  /// - 768: bge-base-en-v1.5, e5-base-v2
+  /// - 1024: bge-large-en-v1.5, e5-large-v2
+  ///
+  /// When model is not available, returns a zero vector (384-dimensional).
+  /// This allows the database to function before model download.
   static Future<List<double>> embed(String text) async {
+    if (!_isModelAvailable) {
+      // Return zero vector when model not available
+      return List<double>.filled(0, 0.0);
+    }
+
     if (_session == null) {
       throw Exception("EmbeddingService not initialized. Call init() first.");
     }
@@ -79,7 +98,7 @@ class EmbeddingService {
       print('[DEBUG] Output shape: ${_getShape(outputData)}');
     }
 
-    // [1, seq_len, 384] -> mean pooling -> [384]
+    // [1, seq_len, hidden_size] -> mean pooling -> [hidden_size]
     List<double> embedding;
     if (outputData.isNotEmpty && outputData[0] is List) {
       // 3D output: [batch, seq_len, hidden]
@@ -142,6 +161,11 @@ class EmbeddingService {
     int concurrency = 1, // Sequential due to ONNX session limitation
     void Function(int completed, int total)? onProgress,
   }) async {
+    if (!_isModelAvailable) {
+      // Return zero vectors when model not available
+      return texts.map((_) => List<double>.filled(0, 0.0)).toList();
+    }
+
     if (_session == null) {
       throw Exception("EmbeddingService not initialized. Call init() first.");
     }

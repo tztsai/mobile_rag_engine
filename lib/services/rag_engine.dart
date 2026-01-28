@@ -109,16 +109,22 @@ class RagEngine {
     final dbPath = "${dir.path}/${config.databaseName ?? 'rag.sqlite'}";
     final tokenizerPath = "${dir.path}/tokenizer.json";
 
-    // 2. Copy and initialize tokenizer
-    onProgress?.call('Initializing tokenizer...');
-    await _copyAssetToFile(config.tokenizerAsset, tokenizerPath);
-    await initTokenizer(tokenizerPath: tokenizerPath);
-    final vocabSize = getVocabSize();
+    try {
+      // 2. Copy and initialize tokenizer
+      onProgress?.call('Initializing tokenizer...');
+      await _copyAssetToFile(config.tokenizerAsset, tokenizerPath);
+      await initTokenizer(tokenizerPath: tokenizerPath);
+      final vocabSize = getVocabSize();
 
-    // 3. Load ONNX embedding model
-    onProgress?.call('Loading embedding model...');
-    final modelBytes = await rootBundle.load(config.modelAsset);
-    await EmbeddingService.init(modelBytes.buffer.asUint8List());
+      // 3. Load ONNX embedding model
+      onProgress?.call('Loading embedding model...');
+      final modelBytes = await rootBundle.load(config.modelAsset);
+      await EmbeddingService.init(modelBytes.buffer.asUint8List());
+    } catch (e) {
+      onProgress?.call(
+        'Warning: Failed to initialize embedding model. RAG search will be disabled.',
+      );
+    }
 
     // 4. Initialize database connection pool
     onProgress?.call('Initializing connection pool...');
@@ -188,6 +194,8 @@ class RagEngine {
   /// [strategy] - Context assembly strategy (default: relevanceFirst).
   /// [adjacentChunks] - Include N chunks before/after matches (default: 0).
   /// [singleSourceMode] - Only include chunks from most relevant source.
+  ///
+  /// Returns empty result if embedding model is not available.
   Future<RagSearchResult> search(
     String query, {
     int topK = 10,
@@ -195,31 +203,43 @@ class RagEngine {
     ContextStrategy strategy = ContextStrategy.relevanceFirst,
     int adjacentChunks = 0,
     bool singleSourceMode = false,
-  }) => _ragService.search(
-    query,
-    topK: topK,
-    tokenBudget: tokenBudget,
-    strategy: strategy,
-    adjacentChunks: adjacentChunks,
-    singleSourceMode: singleSourceMode,
-  );
+  }) async {
+    if (!isModelAvailable) {
+      return RagSearchResult(chunks: [], context: AssembledContext.empty());
+    }
+    return _ragService.search(
+      query,
+      topK: topK,
+      tokenBudget: tokenBudget,
+      strategy: strategy,
+      adjacentChunks: adjacentChunks,
+      singleSourceMode: singleSourceMode,
+    );
+  }
 
   /// Hybrid search combining vector and keyword (BM25) search.
   ///
   /// Uses Reciprocal Rank Fusion (RRF) to combine semantic and keyword results.
+  ///
+  /// Returns empty result if embedding model is not available.
   Future<List<hybrid.HybridSearchResult>> searchHybrid(
     String query, {
     int topK = 10,
     double vectorWeight = 0.5,
     double bm25Weight = 0.5,
-  }) => _ragService.searchHybrid(
-    query,
-    topK: topK,
-    vectorWeight: vectorWeight,
-    bm25Weight: bm25Weight,
-  );
+  }) async {
+    if (!isModelAvailable) return [];
+    return _ragService.searchHybrid(
+      query,
+      topK: topK,
+      vectorWeight: vectorWeight,
+      bm25Weight: bm25Weight,
+    );
+  }
 
   /// Hybrid search with context assembly for LLM.
+  ///
+  /// Returns empty result if embedding model is not available.
   Future<RagSearchResult> searchHybridWithContext(
     String query, {
     int topK = 10,
@@ -227,14 +247,19 @@ class RagEngine {
     ContextStrategy strategy = ContextStrategy.relevanceFirst,
     double vectorWeight = 0.5,
     double bm25Weight = 0.5,
-  }) => _ragService.searchHybridWithContext(
-    query,
-    topK: topK,
-    tokenBudget: tokenBudget,
-    strategy: strategy,
-    vectorWeight: vectorWeight,
-    bm25Weight: bm25Weight,
-  );
+  }) async {
+    if (!isModelAvailable) {
+      return RagSearchResult(chunks: [], context: AssembledContext.empty());
+    }
+    return _ragService.searchHybridWithContext(
+      query,
+      topK: topK,
+      tokenBudget: tokenBudget,
+      strategy: strategy,
+      vectorWeight: vectorWeight,
+      bm25Weight: bm25Weight,
+    );
+  }
 
   /// Rebuild the HNSW index after adding documents.
   ///
@@ -277,4 +302,10 @@ class RagEngine {
     EmbeddingService.dispose();
     closeDbPool();
   }
+
+  /// Check if embedding model is available.
+  ///
+  /// Returns false if the model has not been loaded, meaning search operations
+  /// will return empty results (zero embeddings produce no matches).
+  static bool get isModelAvailable => EmbeddingService.isModelAvailable;
 }

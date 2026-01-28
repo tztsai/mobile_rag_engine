@@ -31,6 +31,13 @@ class AssembledContext {
   @override
   String toString() =>
       'AssembledContext(${includedChunks.length} chunks, ~$estimatedTokens tokens)';
+
+  static const empty = AssembledContext(
+    text: '',
+    includedChunks: [],
+    estimatedTokens: 0,
+    remainingBudget: 0,
+  );
 }
 
 /// Strategy for selecting and ordering chunks.
