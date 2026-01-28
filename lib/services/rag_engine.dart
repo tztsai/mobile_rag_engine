@@ -279,7 +279,7 @@ class RagEngine {
   Future<SourceStats> getStats() => _ragService.getStats();
 
   /// Remove a source and all its chunks from the database.
-  Future<void> removeSource(int sourceId) => _ragService.removeSource(sourceId);
+  Future<void> removeSource(String sourceId) => _ragService.removeSource(sourceId);
 
   /// Format search results as an LLM prompt.
   String formatPrompt(String query, RagSearchResult result) =>

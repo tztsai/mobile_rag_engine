@@ -13,18 +13,20 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 Future<void> initSourceDb() =>
     RustLib.instance.api.crateApiSourceRagInitSourceDb();
 
-/// Add a source document (chunks added separately via add_chunks).
+/// Add a source document with a specific ID (chunks added separately via add_chunks).
 Future<AddSourceResult> addSource({
+  required String id,
   required String content,
   String? metadata,
 }) => RustLib.instance.api.crateApiSourceRagAddSource(
+  id: id,
   content: content,
   metadata: metadata,
 );
 
 /// Add chunks for a source (uses transaction for atomicity).
 Future<int> addChunks({
-  required PlatformInt64 sourceId,
+  required String sourceId,
   required List<ChunkData> chunks,
 }) => RustLib.instance.api.crateApiSourceRagAddChunks(
   sourceId: sourceId,
@@ -45,16 +47,16 @@ Future<List<ChunkSearchResult>> searchChunks({
 );
 
 /// Get source document by ID.
-Future<String?> getSource({required PlatformInt64 sourceId}) =>
+Future<String?> getSource({required String sourceId}) =>
     RustLib.instance.api.crateApiSourceRagGetSource(sourceId: sourceId);
 
 /// Get all chunks for a source.
-Future<List<String>> getSourceChunks({required PlatformInt64 sourceId}) =>
+Future<List<String>> getSourceChunks({required String sourceId}) =>
     RustLib.instance.api.crateApiSourceRagGetSourceChunks(sourceId: sourceId);
 
 /// Get adjacent chunks by source_id and chunk_index range.
 Future<List<ChunkSearchResult>> getAdjacentChunks({
-  required PlatformInt64 sourceId,
+  required String sourceId,
   required int minIndex,
   required int maxIndex,
 }) => RustLib.instance.api.crateApiSourceRagGetAdjacentChunks(
@@ -64,7 +66,7 @@ Future<List<ChunkSearchResult>> getAdjacentChunks({
 );
 
 /// Delete a source and all its chunks.
-Future<void> deleteSource({required PlatformInt64 sourceId}) =>
+Future<void> deleteSource({required String sourceId}) =>
     RustLib.instance.api.crateApiSourceRagDeleteSource(sourceId: sourceId);
 
 Future<SourceStats> getSourceStats() =>
@@ -84,7 +86,7 @@ Future<void> updateChunkEmbedding({
 );
 
 class AddSourceResult {
-  final PlatformInt64 sourceId;
+  final String sourceId;
   final bool isDuplicate;
   final int chunkCount;
   final String message;
@@ -173,7 +175,7 @@ class ChunkForReembedding {
 
 class ChunkSearchResult {
   final PlatformInt64 chunkId;
-  final PlatformInt64 sourceId;
+  final String sourceId;
   final int chunkIndex;
   final String content;
   final String chunkType;

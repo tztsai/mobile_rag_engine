@@ -38,7 +38,7 @@ ChunkingStrategy detectChunkingStrategy(String? filePath) {
 
 /// Result of adding a source document with automatic chunking.
 class SourceAddResult {
-  final int sourceId;
+  final String sourceId;
   final bool isDuplicate;
   final int chunkCount;
   final String message;
@@ -49,6 +49,16 @@ class SourceAddResult {
     required this.chunkCount,
     required this.message,
   });
+
+  /// Create from the low-level AddSourceResult
+  factory SourceAddResult.fromAddSourceResult(AddSourceResult result) {
+    return SourceAddResult(
+      sourceId: result.sourceId,
+      isDuplicate: result.isDuplicate,
+      chunkCount: result.chunkCount,
+      message: result.message,
+    );
+  }
 }
 
 /// Search result with assembled context.
@@ -124,21 +134,22 @@ class SourceRagService {
   /// - Other files → Default recursive chunking
   Future<SourceAddResult> addSourceWithChunking(
     String content, {
+    String? id,
     String? metadata,
     String? filePath,
     ChunkingStrategy? strategy,
     void Function(int done, int total)? onProgress,
   }) async {
-    // 1. Add source document
-    final sourceResult = await addSource(content: content, metadata: metadata);
+    // 1. Add source document (generate ID if not provided)
+    final sourceId = id ?? _generateSourceId();
+    final sourceResult = await addSource(
+      id: sourceId,
+      content: content,
+      metadata: metadata,
+    );
 
     if (sourceResult.isDuplicate) {
-      return SourceAddResult(
-        sourceId: sourceResult.sourceId.toInt(),
-        isDuplicate: true,
-        chunkCount: 0,
-        message: sourceResult.message,
-      );
+      return SourceAddResult.fromAddSourceResult(sourceResult);
     }
 
     // 2. Determine chunking strategy
@@ -201,24 +212,26 @@ class SourceRagService {
     }
 
     if (chunkDataList.isEmpty) {
-      return SourceAddResult(
-        sourceId: sourceResult.sourceId.toInt(),
-        isDuplicate: false,
-        chunkCount: 0,
-        message: 'No chunks created',
-      );
+      return SourceAddResult.fromAddSourceResult(sourceResult);
     }
 
     // 4. Store chunks
-    await addChunks(sourceId: sourceResult.sourceId, chunks: chunkDataList);
+    await addChunks(sourceId: sourceId, chunks: chunkDataList);
 
     return SourceAddResult(
-      sourceId: sourceResult.sourceId.toInt(),
+      sourceId: sourceId,
       isDuplicate: false,
       chunkCount: chunkDataList.length,
       message:
           'Added ${chunkDataList.length} chunks (${effectiveStrategy.name})',
     );
+  }
+
+  /// Generate a unique source ID using timestamp and random chars.
+  String _generateSourceId() {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final random = (timestamp % 10000).toString().padLeft(4, '0');
+    return 'src_$timestamp$random';
   }
 
   /// Rebuild the HNSW index after adding sources.
@@ -328,10 +341,10 @@ class SourceRagService {
     final queryLower = query.toLowerCase();
 
     // First: Try to find source that contains the exact query text
-    final sourceTextMatches = <int, int>{}; // sourceId -> match count
+    final sourceTextMatches = <String, int>{}; // sourceId -> match count
 
     for (final chunk in results) {
-      final sourceId = chunk.sourceId.toInt();
+      final sourceId = chunk.sourceId;
       final contentLower = chunk.content.toLowerCase();
 
       // Check if chunk contains significant part of query
@@ -357,7 +370,7 @@ class SourceRagService {
     }
 
     // Find source with highest text match count
-    int? bestSourceByText;
+    String? bestSourceByText;
     int bestTextMatchCount = 0;
     for (final entry in sourceTextMatches.entries) {
       if (entry.value > bestTextMatchCount) {
@@ -369,19 +382,19 @@ class SourceRagService {
     // If we have a source with good text matches, use it
     if (bestSourceByText != null && bestTextMatchCount > 0) {
       return results
-          .where((c) => c.sourceId.toInt() == bestSourceByText)
+          .where((c) => c.sourceId == bestSourceByText)
           .toList();
     }
 
     // Fallback: Sum similarity scores by source
-    final sourceScores = <int, double>{};
+    final sourceScores = <String, double>{};
     for (final chunk in results) {
-      final sourceId = chunk.sourceId.toInt();
+      final sourceId = chunk.sourceId;
       sourceScores[sourceId] = (sourceScores[sourceId] ?? 0) + chunk.similarity;
     }
 
     // Find source with highest total score
-    int? bestSourceId;
+    String? bestSourceId;
     double bestScore = -1;
     for (final entry in sourceScores.entries) {
       if (entry.value > bestScore) {
@@ -393,7 +406,7 @@ class SourceRagService {
     if (bestSourceId == null) return results;
 
     // Filter to only that source
-    return results.where((c) => c.sourceId.toInt() == bestSourceId).toList();
+    return results.where((c) => c.sourceId == bestSourceId).toList();
   }
 
   /// Expand search results with adjacent chunks from the same source.
@@ -458,7 +471,7 @@ class SourceRagService {
   }
 
   /// Remove a source and all its chunks from the database.
-  Future<void> removeSource(int sourceId) async {
+  Future<void> removeSource(String sourceId) async {
     await deleteSource(sourceId: sourceId);
     // Note: HNSW index is not automatically updated.
     // It's recommended to call rebuildIndex() if many sources are deleted.

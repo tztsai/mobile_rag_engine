@@ -133,17 +133,17 @@ class ContextBuilder {
     if (results.isEmpty) return results;
 
     // Count chunks and sum scores by source
-    final sourceScores = <int, double>{};
-    final sourceChunkCounts = <int, int>{};
+    final sourceScores = <String, double>{};
+    final sourceChunkCounts = <String, int>{};
 
     for (final chunk in results) {
-      final sourceId = chunk.sourceId.toInt();
+      final sourceId = chunk.sourceId;
       sourceScores[sourceId] = (sourceScores[sourceId] ?? 0) + chunk.similarity;
       sourceChunkCounts[sourceId] = (sourceChunkCounts[sourceId] ?? 0) + 1;
     }
 
     // Find source with highest total score
-    int? bestSourceId;
+    String? bestSourceId;
     double bestScore = -1;
     for (final entry in sourceScores.entries) {
       if (entry.value > bestScore) {
@@ -155,7 +155,7 @@ class ContextBuilder {
     if (bestSourceId == null) return results;
 
     // Filter to only that source
-    return results.where((c) => c.sourceId.toInt() == bestSourceId).toList();
+    return results.where((c) => c.sourceId == bestSourceId).toList();
   }
 
   /// Build text grouped by source with clear document headers.
@@ -167,9 +167,9 @@ class ContextBuilder {
     if (chunks.isEmpty) return '';
 
     // Group chunks by source
-    final bySource = <int, List<ChunkSearchResult>>{};
+    final bySource = <String, List<ChunkSearchResult>>{};
     for (final chunk in chunks) {
-      final sourceId = chunk.sourceId.toInt();
+      final sourceId = chunk.sourceId;
       bySource.putIfAbsent(sourceId, () => []).add(chunk);
     }
 
@@ -219,17 +219,17 @@ class ContextBuilder {
   ) {
     final diverse = <ChunkSearchResult>[];
     final remaining = List<ChunkSearchResult>.from(results);
-    int? lastSourceId;
+    String? lastSourceId;
 
     while (remaining.isNotEmpty) {
       // Find next chunk not from last source
       final idx = remaining.indexWhere(
-        (r) => r.sourceId.toInt() != lastSourceId,
+        (r) => r.sourceId != lastSourceId,
       );
 
       if (idx >= 0) {
         diverse.add(remaining.removeAt(idx));
-        lastSourceId = diverse.last.sourceId.toInt();
+        lastSourceId = diverse.last.sourceId;
       } else {
         // All remaining are from same source
         diverse.addAll(remaining);
