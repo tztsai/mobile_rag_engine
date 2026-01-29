@@ -467,14 +467,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
-  rag_engine_flutter:
-    dependency: "direct main"
-    description:
-      name: rag_engine_flutter
-      sha256: b67a06dd0b583f89d988d4d166a6491950c64401952f974d03d88bf5df94a792
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.7.0"
   shelf:
     dependency: transitive
     description:

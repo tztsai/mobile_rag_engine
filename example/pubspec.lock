@@ -206,7 +206,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.7.0"
+    version: "0.7.1"
   onnxruntime:
     dependency: transitive
     description:
@@ -287,14 +287,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
-  rag_engine_flutter:
-    dependency: transitive
-    description:
-      name: rag_engine_flutter
-      sha256: "64e5edd7855a1cd5722d1af5659c3e790f0772d10423f5a5f68064aace59ad82"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.1"
   sky_engine:
     dependency: transitive
     description: flutter
