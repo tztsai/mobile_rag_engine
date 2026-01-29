@@ -231,7 +231,7 @@ class SourceRagService {
 
   /// Generate a unique source ID using timestamp and random chars.
   int _generateSourceId() {
-     final now = DateTime.now();
+    final now = DateTime.now();
     final rand = Random.secure();
     final date = (now.year % 100) * 10000 + now.month * 100 + now.day;
     return rand.nextInt(1000_000_000) * 1000_000 + date;
