@@ -2961,7 +2961,7 @@ impl SseDecode for crate::api::hybrid_search::HybridSearchResult {
         let mut var_score = <f64>::sse_decode(deserializer);
         let mut var_vectorRank = <u32>::sse_decode(deserializer);
         let mut var_bm25Rank = <u32>::sse_decode(deserializer);
-        let mut var_sourceId = <i64>::sse_decode(deserializer);
+        let mut var_sourceId = <String>::sse_decode(deserializer);
         let mut var_metadata = <Option<String>>::sse_decode(deserializer);
         return crate::api::hybrid_search::HybridSearchResult {
             doc_id: var_docId,
@@ -4444,7 +4444,7 @@ impl SseEncode for crate::api::hybrid_search::HybridSearchResult {
         <f64>::sse_encode(self.score, serializer);
         <u32>::sse_encode(self.vector_rank, serializer);
         <u32>::sse_encode(self.bm25_rank, serializer);
-        <i64>::sse_encode(self.source_id, serializer);
+        <String>::sse_encode(self.source_id, serializer);
         <Option<String>>::sse_encode(self.metadata, serializer);
     }
 }

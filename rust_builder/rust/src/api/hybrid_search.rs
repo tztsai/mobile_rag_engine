@@ -36,7 +36,7 @@ pub struct HybridSearchResult {
     pub score: f64,
     pub vector_rank: u32,
     pub bm25_rank: u32,
-    pub source_id: i64,
+    pub source_id: String,
     pub metadata: Option<String>,
 }
 

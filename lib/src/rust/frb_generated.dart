@@ -2913,7 +2913,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       score: dco_decode_f_64(arr[2]),
       vectorRank: dco_decode_u_32(arr[3]),
       bm25Rank: dco_decode_u_32(arr[4]),
-      sourceId: dco_decode_i_64(arr[5]),
+      sourceId: dco_decode_String(arr[5]),
       metadata: dco_decode_opt_String(arr[6]),
     );
   }
@@ -3517,7 +3517,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_score = sse_decode_f_64(deserializer);
     var var_vectorRank = sse_decode_u_32(deserializer);
     var var_bm25Rank = sse_decode_u_32(deserializer);
-    var var_sourceId = sse_decode_i_64(deserializer);
+    var var_sourceId = sse_decode_String(deserializer);
     var var_metadata = sse_decode_opt_String(deserializer);
     return HybridSearchResult(
       docId: var_docId,
@@ -4230,7 +4230,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.score, serializer);
     sse_encode_u_32(self.vectorRank, serializer);
     sse_encode_u_32(self.bm25Rank, serializer);
-    sse_encode_i_64(self.sourceId, serializer);
+    sse_encode_String(self.sourceId, serializer);
     sse_encode_opt_String(self.metadata, serializer);
   }
 

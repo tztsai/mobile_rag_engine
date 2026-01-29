@@ -56,7 +56,7 @@ class HybridSearchResult {
   final double score;
   final int vectorRank;
   final int bm25Rank;
-  final PlatformInt64 sourceId;
+  final String sourceId;
   final String? metadata;
 
   const HybridSearchResult({
