@@ -117,7 +117,7 @@ class RagEngine {
         await _copyAssetToFile(tokenizerAsset!, tokenizerPath);
       }
 
-      // 3. Load ONNX embedding model from assets
+      // 3. Load ONNX embedding model from file or asset
       final modelBytes = modelPath == null
           ? (await rootBundle.load(modelAsset!)).buffer.asUint8List()
           : await File(modelPath).readAsBytes();
@@ -235,7 +235,7 @@ class RagEngine {
     bool singleSourceMode = false,
   }) async {
     if (!isModelAvailable) {
-      return RagSearchResult(chunks: [], context: AssembledContext.empty());
+      return RagSearchResult(chunks: [], context: AssembledContext.empty);
     }
     return _ragService.search(
       query,
@@ -279,7 +279,7 @@ class RagEngine {
     double bm25Weight = 0.5,
   }) async {
     if (!isModelAvailable) {
-      return RagSearchResult(chunks: [], context: AssembledContext.empty());
+      return RagSearchResult(chunks: [], context: AssembledContext.empty);
     }
     return _ragService.searchHybridWithContext(
       query,
