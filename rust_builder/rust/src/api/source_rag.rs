@@ -36,7 +36,7 @@ pub fn init_source_db() -> anyhow::Result<()> {
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS sources (
-                id TEXT PRIMARY KEY,
+                id INTEGER PRIMARY KEY,
                 content TEXT NOT NULL,
                 content_hash TEXT UNIQUE,
                 metadata TEXT,
@@ -48,7 +48,7 @@ pub fn init_source_db() -> anyhow::Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS chunks (
                 id INTEGER PRIMARY KEY,
-                source_id TEXT NOT NULL,
+                source_id INTEGER NOT NULL,
                 chunk_index INTEGER NOT NULL,
                 content TEXT NOT NULL,
                 start_pos INTEGER NOT NULL,
@@ -82,7 +82,7 @@ pub fn init_source_db() -> anyhow::Result<()> {
 
 #[derive(Debug, Clone)]
 pub struct AddSourceResult {
-    pub source_id: String,
+    pub source_id: i64,
     pub is_duplicate: bool,
     pub chunk_count: i32,
     pub message: String,
@@ -90,7 +90,7 @@ pub struct AddSourceResult {
 
 /// Add a source document with a specific ID (chunks added separately via add_chunks).
 pub fn add_source(
-    id: String,
+    id: i64,
     content: String,
     metadata: Option<String>,
 ) -> anyhow::Result<AddSourceResult> {
@@ -99,7 +99,7 @@ pub fn add_source(
     let content_hash = hash_content(&content);
     let conn = get_connection()?;
 
-    let existing: Option<String> = conn
+    let existing: Option<i64> = conn
         .query_row(
             "SELECT id FROM sources WHERE content_hash = ?1",
             params![content_hash],
@@ -143,7 +143,7 @@ pub struct ChunkData {
 }
 
 /// Add chunks for a source (uses transaction for atomicity).
-pub fn add_chunks(source_id: &str, chunks: Vec<ChunkData>) -> anyhow::Result<i32> {
+pub fn add_chunks(source_id: i64, chunks: Vec<ChunkData>) -> anyhow::Result<i32> {
     info!(
         "[add_chunks] Adding {} chunks for source {}",
         chunks.len(),
@@ -203,7 +203,7 @@ pub fn rebuild_chunk_hnsw_index() -> anyhow::Result<()> {
 #[derive(Debug, Clone)]
 pub struct ChunkSearchResult {
     pub chunk_id: i64,
-    pub source_id: String,
+    pub source_id: i64,
     pub chunk_index: i32,
     pub content: String,
     pub chunk_type: String,
@@ -241,7 +241,7 @@ pub fn search_chunks(
 
     let mut results = Vec::new();
     for result in hnsw_results {
-        let row: Option<(String, i32, String, String, Option<String>)> = conn
+        let row: Option<(i64, i32, String, String, Option<String>)> = conn
             .query_row(
                 "SELECT c.source_id, c.chunk_index, c.content, COALESCE(c.chunk_type, 'general'), s.metadata 
                  FROM chunks c
@@ -283,7 +283,7 @@ fn search_chunks_linear(
     let query_vec = Array1::from(query_embedding.clone());
     let query_norm = query_vec.mapv(|x| x * x).sum().sqrt();
 
-    let mut candidates: Vec<(f64, i64, String, i32, String, String, Option<String>)> = Vec::new();
+    let mut candidates: Vec<(f64, i64, i64, i32, String, String, Option<String>)> = Vec::new();
 
     let rows = stmt.query_map([], |row| {
         Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get::<_, Vec<u8>>(5)?, row.get(6)?))
@@ -291,7 +291,7 @@ fn search_chunks_linear(
 
     for row in rows {
         let (id, source_id, chunk_index, content, chunk_type, embedding_blob, metadata): (
-            i64, String, i32, String, String, Vec<u8>, Option<String>,
+            i64, i64, i32, String, String, Vec<u8>, Option<String>,
         ) = row?;
 
         let embedding: Vec<f32> = embedding_blob
@@ -322,7 +322,7 @@ fn search_chunks_linear(
 }
 
 /// Get source document by ID.
-pub fn get_source(source_id: &str) -> anyhow::Result<Option<String>> {
+pub fn get_source(source_id: i64) -> anyhow::Result<Option<String>> {
     let conn = get_connection()?;
     Ok(conn
         .query_row(
@@ -334,7 +334,7 @@ pub fn get_source(source_id: &str) -> anyhow::Result<Option<String>> {
 }
 
 /// Get all chunks for a source.
-pub fn get_source_chunks(source_id: &str) -> anyhow::Result<Vec<String>> {
+pub fn get_source_chunks(source_id: i64) -> anyhow::Result<Vec<String>> {
     let conn = get_connection()?;
     let mut stmt =
         conn.prepare("SELECT content FROM chunks WHERE source_id = ?1 ORDER BY chunk_index")?;
@@ -347,7 +347,7 @@ pub fn get_source_chunks(source_id: &str) -> anyhow::Result<Vec<String>> {
 
 /// Get adjacent chunks by source_id and chunk_index range.
 pub fn get_adjacent_chunks(
-    source_id: &str,
+    source_id: i64,
     min_index: i32,
     max_index: i32,
 ) -> anyhow::Result<Vec<ChunkSearchResult>> {
@@ -380,7 +380,7 @@ pub fn get_adjacent_chunks(
 }
 
 /// Delete a source and all its chunks.
-pub fn delete_source(source_id: &str) -> anyhow::Result<()> {
+pub fn delete_source(source_id: i64) -> anyhow::Result<()> {
     let conn = get_connection()?;
     conn.execute(
         "DELETE FROM chunks WHERE source_id = ?1",
@@ -466,7 +466,7 @@ mod tests {
 
         // 2. Add Source with Metadata
         let metadata = r#"{"author": "Test Author", "year": 2025}"#;
-        let source_res = add_source("Test Content".to_string(), Some(metadata.to_string())).unwrap();
+        let source_res = add_source(0, "Test Content".to_string(), Some(metadata.to_string())).unwrap();
         
         let chunk = ChunkData {
             content: "Test Chunk".to_string(),

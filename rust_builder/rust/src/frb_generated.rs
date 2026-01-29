@@ -67,7 +67,7 @@ fn wire__crate__api__source_rag__add_chunks_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_source_id = <String>::sse_decode(&mut deserializer);
+            let api_source_id = <i64>::sse_decode(&mut deserializer);
             let api_chunks =
                 <Vec<crate::api::source_rag::ChunkData>>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -75,7 +75,7 @@ fn wire__crate__api__source_rag__add_chunks_impl(
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok =
-                            crate::api::source_rag::add_chunks(&api_source_id, api_chunks)?;
+                            crate::api::source_rag::add_chunks(api_source_id, api_chunks)?;
                         Ok(output_ok)
                     })(),
                 )
@@ -181,7 +181,7 @@ fn wire__crate__api__source_rag__add_source_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_id = <String>::sse_decode(&mut deserializer);
+            let api_id = <i64>::sse_decode(&mut deserializer);
             let api_content = <String>::sse_decode(&mut deserializer);
             let api_metadata = <Option<String>>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -876,12 +876,12 @@ fn wire__crate__api__source_rag__delete_source_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_source_id = <String>::sse_decode(&mut deserializer);
+            let api_source_id = <i64>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::source_rag::delete_source(&api_source_id)?;
+                        let output_ok = crate::api::source_rag::delete_source(api_source_id)?;
                         Ok(output_ok)
                     })(),
                 )
@@ -1056,7 +1056,7 @@ fn wire__crate__api__source_rag__get_adjacent_chunks_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_source_id = <String>::sse_decode(&mut deserializer);
+            let api_source_id = <i64>::sse_decode(&mut deserializer);
             let api_min_index = <i32>::sse_decode(&mut deserializer);
             let api_max_index = <i32>::sse_decode(&mut deserializer);
             deserializer.end();
@@ -1064,7 +1064,7 @@ fn wire__crate__api__source_rag__get_adjacent_chunks_impl(
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
                         let output_ok = crate::api::source_rag::get_adjacent_chunks(
-                            &api_source_id,
+                            api_source_id,
                             api_min_index,
                             api_max_index,
                         )?;
@@ -1263,12 +1263,12 @@ fn wire__crate__api__source_rag__get_source_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_source_id = <String>::sse_decode(&mut deserializer);
+            let api_source_id = <i64>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::source_rag::get_source(&api_source_id)?;
+                        let output_ok = crate::api::source_rag::get_source(api_source_id)?;
                         Ok(output_ok)
                     })(),
                 )
@@ -1298,12 +1298,12 @@ fn wire__crate__api__source_rag__get_source_chunks_impl(
             };
             let mut deserializer =
                 flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_source_id = <String>::sse_decode(&mut deserializer);
+            let api_source_id = <i64>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
                     (move || {
-                        let output_ok = crate::api::source_rag::get_source_chunks(&api_source_id)?;
+                        let output_ok = crate::api::source_rag::get_source_chunks(api_source_id)?;
                         Ok(output_ok)
                     })(),
                 )
@@ -2759,7 +2759,7 @@ impl SseDecode for crate::api::simple_rag::AddDocumentResult {
 impl SseDecode for crate::api::source_rag::AddSourceResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_sourceId = <String>::sse_decode(deserializer);
+        let mut var_sourceId = <i64>::sse_decode(deserializer);
         let mut var_isDuplicate = <bool>::sse_decode(deserializer);
         let mut var_chunkCount = <i32>::sse_decode(deserializer);
         let mut var_message = <String>::sse_decode(deserializer);
@@ -2841,7 +2841,7 @@ impl SseDecode for crate::api::source_rag::ChunkSearchResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_chunkId = <i64>::sse_decode(deserializer);
-        let mut var_sourceId = <String>::sse_decode(deserializer);
+        let mut var_sourceId = <i64>::sse_decode(deserializer);
         let mut var_chunkIndex = <i32>::sse_decode(deserializer);
         let mut var_content = <String>::sse_decode(deserializer);
         let mut var_chunkType = <String>::sse_decode(deserializer);
@@ -2961,7 +2961,7 @@ impl SseDecode for crate::api::hybrid_search::HybridSearchResult {
         let mut var_score = <f64>::sse_decode(deserializer);
         let mut var_vectorRank = <u32>::sse_decode(deserializer);
         let mut var_bm25Rank = <u32>::sse_decode(deserializer);
-        let mut var_sourceId = <String>::sse_decode(deserializer);
+        let mut var_sourceId = <i64>::sse_decode(deserializer);
         let mut var_metadata = <Option<String>>::sse_decode(deserializer);
         return crate::api::hybrid_search::HybridSearchResult {
             doc_id: var_docId,
@@ -4298,7 +4298,7 @@ impl SseEncode for crate::api::simple_rag::AddDocumentResult {
 impl SseEncode for crate::api::source_rag::AddSourceResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.source_id, serializer);
+        <i64>::sse_encode(self.source_id, serializer);
         <bool>::sse_encode(self.is_duplicate, serializer);
         <i32>::sse_encode(self.chunk_count, serializer);
         <String>::sse_encode(self.message, serializer);
@@ -4353,7 +4353,7 @@ impl SseEncode for crate::api::source_rag::ChunkSearchResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i64>::sse_encode(self.chunk_id, serializer);
-        <String>::sse_encode(self.source_id, serializer);
+        <i64>::sse_encode(self.source_id, serializer);
         <i32>::sse_encode(self.chunk_index, serializer);
         <String>::sse_encode(self.content, serializer);
         <String>::sse_encode(self.chunk_type, serializer);
@@ -4444,7 +4444,7 @@ impl SseEncode for crate::api::hybrid_search::HybridSearchResult {
         <f64>::sse_encode(self.score, serializer);
         <u32>::sse_encode(self.vector_rank, serializer);
         <u32>::sse_encode(self.bm25_rank, serializer);
-        <String>::sse_encode(self.source_id, serializer);
+        <i64>::sse_encode(self.source_id, serializer);
         <Option<String>>::sse_encode(self.metadata, serializer);
     }
 }

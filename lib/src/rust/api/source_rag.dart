@@ -15,7 +15,7 @@ Future<void> initSourceDb() =>
 
 /// Add a source document with a specific ID (chunks added separately via add_chunks).
 Future<AddSourceResult> addSource({
-  required String id,
+  required PlatformInt64 id,
   required String content,
   String? metadata,
 }) => RustLib.instance.api.crateApiSourceRagAddSource(
@@ -26,7 +26,7 @@ Future<AddSourceResult> addSource({
 
 /// Add chunks for a source (uses transaction for atomicity).
 Future<int> addChunks({
-  required String sourceId,
+  required PlatformInt64 sourceId,
   required List<ChunkData> chunks,
 }) => RustLib.instance.api.crateApiSourceRagAddChunks(
   sourceId: sourceId,
@@ -47,16 +47,16 @@ Future<List<ChunkSearchResult>> searchChunks({
 );
 
 /// Get source document by ID.
-Future<String?> getSource({required String sourceId}) =>
+Future<String?> getSource({required PlatformInt64 sourceId}) =>
     RustLib.instance.api.crateApiSourceRagGetSource(sourceId: sourceId);
 
 /// Get all chunks for a source.
-Future<List<String>> getSourceChunks({required String sourceId}) =>
+Future<List<String>> getSourceChunks({required PlatformInt64 sourceId}) =>
     RustLib.instance.api.crateApiSourceRagGetSourceChunks(sourceId: sourceId);
 
 /// Get adjacent chunks by source_id and chunk_index range.
 Future<List<ChunkSearchResult>> getAdjacentChunks({
-  required String sourceId,
+  required PlatformInt64 sourceId,
   required int minIndex,
   required int maxIndex,
 }) => RustLib.instance.api.crateApiSourceRagGetAdjacentChunks(
@@ -66,7 +66,7 @@ Future<List<ChunkSearchResult>> getAdjacentChunks({
 );
 
 /// Delete a source and all its chunks.
-Future<void> deleteSource({required String sourceId}) =>
+Future<void> deleteSource({required PlatformInt64 sourceId}) =>
     RustLib.instance.api.crateApiSourceRagDeleteSource(sourceId: sourceId);
 
 Future<SourceStats> getSourceStats() =>
@@ -86,7 +86,7 @@ Future<void> updateChunkEmbedding({
 );
 
 class AddSourceResult {
-  final String sourceId;
+  final PlatformInt64 sourceId;
   final bool isDuplicate;
   final int chunkCount;
   final String message;
@@ -175,7 +175,7 @@ class ChunkForReembedding {
 
 class ChunkSearchResult {
   final PlatformInt64 chunkId;
-  final String sourceId;
+  final PlatformInt64 sourceId;
   final int chunkIndex;
   final String content;
   final String chunkType;
