@@ -8,11 +8,13 @@
 /// - Hybrid search combining vector and BM25 keyword search
 library;
 
+import 'dart:math';
 import 'dart:typed_data';
-import '../src/rust/api/source_rag.dart';
-import '../src/rust/api/semantic_chunker.dart';
-import '../src/rust/api/hybrid_search.dart' as hybrid;
+
 import '../src/rust/api/hnsw_index.dart' as hnsw;
+import '../src/rust/api/hybrid_search.dart' as hybrid;
+import '../src/rust/api/semantic_chunker.dart';
+import '../src/rust/api/source_rag.dart';
 import 'context_builder.dart';
 import 'embedding_service.dart';
 
@@ -38,7 +40,7 @@ ChunkingStrategy detectChunkingStrategy(String? filePath) {
 
 /// Result of adding a source document with automatic chunking.
 class SourceAddResult {
-  final String sourceId;
+  final int sourceId;
   final bool isDuplicate;
   final int chunkCount;
   final String message;
@@ -134,7 +136,7 @@ class SourceRagService {
   /// - Other files → Default recursive chunking
   Future<SourceAddResult> addSourceWithChunking(
     String content, {
-    String? id,
+    int? id,
     String? metadata,
     String? filePath,
     ChunkingStrategy? strategy,
@@ -228,10 +230,11 @@ class SourceRagService {
   }
 
   /// Generate a unique source ID using timestamp and random chars.
-  String _generateSourceId() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final random = (timestamp % 10000).toString().padLeft(4, '0');
-    return 'src_$timestamp$random';
+  int _generateSourceId() {
+     final now = DateTime.now();
+    final rand = Random.secure();
+    final date = (now.year % 100) * 10000 + now.month * 100 + now.day;
+    return rand.nextInt(1000_000_000) * 1000_000 + date;
   }
 
   /// Rebuild the HNSW index after adding sources.
@@ -341,7 +344,7 @@ class SourceRagService {
     final queryLower = query.toLowerCase();
 
     // First: Try to find source that contains the exact query text
-    final sourceTextMatches = <String, int>{}; // sourceId -> match count
+    final sourceTextMatches = <int, int>{}; // sourceId -> match count
 
     for (final chunk in results) {
       final sourceId = chunk.sourceId;
@@ -370,7 +373,7 @@ class SourceRagService {
     }
 
     // Find source with highest text match count
-    String? bestSourceByText;
+    int? bestSourceByText;
     int bestTextMatchCount = 0;
     for (final entry in sourceTextMatches.entries) {
       if (entry.value > bestTextMatchCount) {
@@ -385,14 +388,14 @@ class SourceRagService {
     }
 
     // Fallback: Sum similarity scores by source
-    final sourceScores = <String, double>{};
+    final sourceScores = <int, double>{};
     for (final chunk in results) {
       final sourceId = chunk.sourceId;
       sourceScores[sourceId] = (sourceScores[sourceId] ?? 0) + chunk.similarity;
     }
 
     // Find source with highest total score
-    String? bestSourceId;
+    int? bestSourceId;
     double bestScore = -1;
     for (final entry in sourceScores.entries) {
       if (entry.value > bestScore) {
@@ -469,7 +472,7 @@ class SourceRagService {
   }
 
   /// Remove a source and all its chunks from the database.
-  Future<void> removeSource(String sourceId) async {
+  Future<void> removeSource(int sourceId) async {
     await deleteSource(sourceId: sourceId);
     // Note: HNSW index is not automatically updated.
     // It's recommended to call rebuildIndex() if many sources are deleted.

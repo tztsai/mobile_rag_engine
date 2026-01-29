@@ -4,8 +4,8 @@
 /// an optimized context string within a token budget.
 library;
 
-import '../src/rust/api/source_rag.dart';
 import '../src/rust/api/compression_utils.dart' as compression;
+import '../src/rust/api/source_rag.dart';
 
 /// Assembled context ready for LLM consumption.
 class AssembledContext {
@@ -133,8 +133,8 @@ class ContextBuilder {
     if (results.isEmpty) return results;
 
     // Count chunks and sum scores by source
-    final sourceScores = <String, double>{};
-    final sourceChunkCounts = <String, int>{};
+    final sourceScores = <int, double>{};
+    final sourceChunkCounts = <int, int>{};
 
     for (final chunk in results) {
       final sourceId = chunk.sourceId;
@@ -143,7 +143,7 @@ class ContextBuilder {
     }
 
     // Find source with highest total score
-    String? bestSourceId;
+    int? bestSourceId;
     double bestScore = -1;
     for (final entry in sourceScores.entries) {
       if (entry.value > bestScore) {
@@ -167,7 +167,7 @@ class ContextBuilder {
     if (chunks.isEmpty) return '';
 
     // Group chunks by source
-    final bySource = <String, List<ChunkSearchResult>>{};
+    final bySource = <int, List<ChunkSearchResult>>{};
     for (final chunk in chunks) {
       final sourceId = chunk.sourceId;
       bySource.putIfAbsent(sourceId, () => []).add(chunk);
@@ -219,7 +219,7 @@ class ContextBuilder {
   ) {
     final diverse = <ChunkSearchResult>[];
     final remaining = List<ChunkSearchResult>.from(results);
-    String? lastSourceId;
+    int? lastSourceId;
 
     while (remaining.isNotEmpty) {
       // Find next chunk not from last source
