@@ -223,9 +223,7 @@ class ContextBuilder {
 
     while (remaining.isNotEmpty) {
       // Find next chunk not from last source
-      final idx = remaining.indexWhere(
-        (r) => r.sourceId != lastSourceId,
-      );
+      final idx = remaining.indexWhere((r) => r.sourceId != lastSourceId);
 
       if (idx >= 0) {
         diverse.add(remaining.removeAt(idx));

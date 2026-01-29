@@ -381,9 +381,7 @@ class SourceRagService {
 
     // If we have a source with good text matches, use it
     if (bestSourceByText != null && bestTextMatchCount > 0) {
-      return results
-          .where((c) => c.sourceId == bestSourceByText)
-          .toList();
+      return results.where((c) => c.sourceId == bestSourceByText).toList();
     }
 
     // Fallback: Sum similarity scores by source

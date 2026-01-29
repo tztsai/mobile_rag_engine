@@ -67,7 +67,8 @@ class RagEngine {
   final String dbPath;
 
   /// Vocabulary size of the loaded tokenizer.
-  late final int vocabSize;
+  int? _vocabSize;
+  int get vocabSize => _vocabSize ?? getVocabSize();
 
   RagEngine._({required SourceRagService ragService, required this.dbPath})
     : _ragService = ragService;
@@ -182,8 +183,6 @@ class RagEngine {
   }) async {
     onProgress?.call('Initializing tokenizer...');
     await initTokenizer(tokenizerPath: tokenizerPath);
-    vocabSize = getVocabSize();
-
     onProgress?.call('Loading embedding model...');
     await EmbeddingService.init(modelBytes);
   }
@@ -308,7 +307,8 @@ class RagEngine {
   Future<SourceStats> getStats() => _ragService.getStats();
 
   /// Remove a source and all its chunks from the database.
-  Future<void> removeSource(String sourceId) => _ragService.removeSource(sourceId);
+  Future<void> removeSource(String sourceId) =>
+      _ragService.removeSource(sourceId);
 
   /// Format search results as an LLM prompt.
   String formatPrompt(String query, RagSearchResult result) =>
