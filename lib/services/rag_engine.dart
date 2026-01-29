@@ -68,13 +68,10 @@ class RagEngine {
   final String dbPath;
 
   /// Vocabulary size of the loaded tokenizer.
-  final int vocabSize;
+  late final int vocabSize;
 
-  RagEngine._({
-    required SourceRagService ragService,
-    required this.dbPath,
-    required this.vocabSize,
-  }) : _ragService = ragService;
+  RagEngine._({required SourceRagService ragService, required this.dbPath})
+    : _ragService = ragService;
 
   /// Initialize RagEngine with all dependencies.
   ///
@@ -98,7 +95,13 @@ class RagEngine {
   /// );
   /// ```
   static Future<RagEngine> initialize({
-    required RagConfig config,
+    String? tokenizerAsset,
+    String? modelAsset,
+    String? tokenizerPath,
+    String? modelPath,
+    String? databaseName,
+    int maxChunkChars = 500,
+    int overlapChars = 50,
     void Function(String status)? onProgress,
   }) async {
     // 0. Auto-initialize Rust library (safe to call multiple times)
@@ -106,45 +109,47 @@ class RagEngine {
 
     // 1. Get app documents directory
     final dir = await getApplicationDocumentsDirectory();
-    final dbPath = "${dir.path}/${config.databaseName ?? 'rag.sqlite'}";
-    final tokenizerPath = "${dir.path}/tokenizer.json";
 
     try {
-      // 2. Copy and initialize tokenizer
-      onProgress?.call('Initializing tokenizer...');
-      await _copyAssetToFile(config.tokenizerAsset, tokenizerPath);
-      await initTokenizer(tokenizerPath: tokenizerPath);
-      final vocabSize = getVocabSize();
+      // 2. Copy tokenizer asset to documents directory
+      if (tokenizerPath == null) {
+        tokenizerPath = "${dir.path}/tokenizer.json";
+        await _copyAssetToFile(tokenizerAsset!, tokenizerPath);
+      }
 
-      // 3. Load ONNX embedding model
-      onProgress?.call('Loading embedding model...');
-      final modelBytes = await rootBundle.load(config.modelAsset);
-      await EmbeddingService.init(modelBytes.buffer.asUint8List());
+      // 3. Load ONNX embedding model from assets
+      final modelBytes = modelPath == null
+          ? (await rootBundle.load(modelAsset!)).buffer.asUint8List()
+          : await File(modelPath).readAsBytes();
+
+      // 4. Initialize tokenizer and embedding service
+      await initTokenizerAndEmbedding(
+        tokenizerPath: tokenizerPath,
+        modelBytes: modelBytes,
+        onProgress: onProgress,
+      );
     } catch (e) {
       onProgress?.call(
-        'Warning: Failed to initialize embedding model. RAG search will be disabled.',
+        'Warning: Failed to initialize embedding model. Vector search will be disabled.',
       );
     }
 
-    // 4. Initialize database connection pool
+    // 5. Initialize database connection pool
     onProgress?.call('Initializing connection pool...');
+    final dbPath = "${dir.path}/${databaseName ?? 'rag.sqlite'}";
     await initDbPool(dbPath: dbPath, maxSize: 4);
 
-    // 5. Initialize RAG service
+    // 6. Initialize RAG service
     onProgress?.call('Initializing database...');
     final ragService = SourceRagService(
       dbPath: dbPath,
-      maxChunkChars: config.maxChunkChars,
-      overlapChars: config.overlapChars,
+      maxChunkChars: maxChunkChars,
+      overlapChars: overlapChars,
     );
     await ragService.init();
 
     onProgress?.call('Ready!');
-    return RagEngine._(
-      ragService: ragService,
-      dbPath: dbPath,
-      vocabSize: vocabSize,
-    );
+    return RagEngine._(ragService: ragService, dbPath: dbPath);
   }
 
   /// Copy asset file to filesystem if it doesn't exist.
@@ -157,6 +162,31 @@ class RagEngine {
       final data = await rootBundle.load(assetPath);
       await file.writeAsBytes(data.buffer.asUint8List());
     }
+  }
+
+  /// Initialize tokenizer and embedding service from file paths.
+  ///
+  /// This method can be called to initialize or reinitialize the tokenizer
+  /// and embedding model from files on the filesystem. This is useful when:
+  /// - First initializing the RAG engine
+  /// - Models were downloaded after app launch
+  ///
+  /// Returns the vocabulary size of the tokenizer.
+  ///
+  /// [tokenizerPath] - Path to tokenizer.json file
+  /// [modelBytes] - ONNX model bytes
+  /// [onProgress] - Optional callback for status updates
+  static Future<void> initTokenizerAndEmbedding({
+    required String tokenizerPath,
+    required Uint8List modelBytes,
+    void Function(String status)? onProgress,
+  }) async {
+    onProgress?.call('Initializing tokenizer...');
+    await initTokenizer(tokenizerPath: tokenizerPath);
+    vocabSize = getVocabSize();
+
+    onProgress?.call('Loading embedding model...');
+    await EmbeddingService.init(modelBytes);
   }
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -62,8 +62,10 @@ class MobileRag {
   /// );
   /// ```
   static Future<void> initialize({
-    required String tokenizerAsset,
-    required String modelAsset,
+    String? tokenizerAsset,
+    String? modelAsset,
+    String? tokenizerPath,
+    String? modelPath,
     String? databaseName,
     int maxChunkChars = 500,
     int overlapChars = 50,
@@ -75,13 +77,13 @@ class MobileRag {
     }
 
     _engine = await RagEngine.initialize(
-      config: RagConfig.fromAssets(
-        tokenizerAsset: tokenizerAsset,
-        modelAsset: modelAsset,
-        databaseName: databaseName,
-        maxChunkChars: maxChunkChars,
-        overlapChars: overlapChars,
-      ),
+      tokenizerAsset: tokenizerAsset,
+      modelAsset: modelAsset,
+      tokenizerPath: tokenizerPath,
+      modelPath: modelPath,
+      databaseName: databaseName,
+      maxChunkChars: maxChunkChars,
+      overlapChars: overlapChars,
       onProgress: onProgress,
     );
     _instance = MobileRag._();
