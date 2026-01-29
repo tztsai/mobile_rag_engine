@@ -24,7 +24,6 @@
 /// ```
 library;
 
-import 'services/rag_config.dart';
 import 'services/rag_engine.dart';
 import 'services/context_builder.dart';
 import 'services/source_rag_service.dart';

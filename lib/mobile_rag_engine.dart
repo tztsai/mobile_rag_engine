@@ -49,7 +49,6 @@ library;
 export 'mobile_rag.dart';
 
 // High-level services (for advanced usage)
-export 'services/rag_config.dart';
 export 'services/rag_engine.dart';
 export 'services/context_builder.dart';
 export 'services/source_rag_service.dart';

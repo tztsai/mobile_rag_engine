@@ -35,7 +35,6 @@ import '../src/rust/api/tokenizer.dart';
 import '../src/rust/api/source_rag.dart' show SourceStats;
 import '../src/rust/api/db_pool.dart';
 import 'embedding_service.dart';
-import 'rag_config.dart';
 import 'source_rag_service.dart';
 import 'context_builder.dart';
 import '../src/rust/api/hybrid_search.dart' as hybrid;
